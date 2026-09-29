@@ -8,7 +8,7 @@ Hodós (del griego ὁδός, «camino», raíz de la palabra «método») es un
 
 La aplicación funciona directamente en el navegador, sin instalación ni servidor:
 
-**https://mgomezr1.github.io/hodos/**
+**https://mgomezr1.github.io/Hodos-Process/**
 
 ## Funcionalidades
 
