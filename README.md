@@ -4,8 +4,6 @@
 
 Hodós (del griego ὁδός, «camino», raíz de la palabra «método») es una aplicación web para el análisis de eficiencia operativa. Permite construir un proceso a partir de formularios o de una plantilla de Excel, lo representa automáticamente como diagrama BPMN 2.0 y señala dónde deben ejecutarse controles duales y operativos para garantizar su ejecución efectiva.
 
-Forma parte de la familia de aplicaciones académicas junto con **Kairós AHP** (decisión multicriterio) y **Thérmē** (análisis cualitativo de riesgos).
-
 ## Acceso
 
 La aplicación funciona directamente en el navegador, sin instalación ni servidor:
@@ -55,7 +53,7 @@ Un único archivo `index.html` con HTML5, CSS3 y JavaScript. Usa SheetJS desde C
 
 Si utilizas Hodós en trabajos académicos, cítalo así:
 
-> Gómez Rueda, M. S. (2026). *Hodós: visualizador de procesos en notación BPMN 2.0 con identificación de puntos de control* (Versión 1.0.0) [Software]. https://github.com/mgomezr1/hodos
+> Gómez Rueda, M. S., Mazo Duque, J.F (2026). *Hodós: visualizador de procesos en notación BPMN 2.0 con identificación de puntos de control* (Versión 1.0.0) [Software]. https://github.com/mgomezr1/hodos
 
 GitHub también ofrece la cita en formato APA y BibTeX desde el botón **Cite this repository**, a partir del archivo `CITATION.cff`.
 
@@ -65,6 +63,5 @@ Uso académico. Cualquier otro uso se rige por las normas de propiedad intelectu
 
 ## Autor
 
-**Mario Sergio Gómez Rueda**
-Universidad Pontificia Bolivariana, Medellín, Colombia
+**Mario Sergio Gómez-Rueda & Juan Felipe Mazo-Duque**
 Sugerencias o inquietudes: mgomezr1@gmail.com
