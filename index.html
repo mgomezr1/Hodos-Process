@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hodós | Visualizador de procesos BPMN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Literata:opsz,wght@7..72,500;7..72,700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --ink:#14213D; --ink2:#223559; --paper:#F2F4F7; --card:#FFFFFF; --line:#D8DEE7;
+  --text:#1B2433; --muted:#566377; --accent:#2B59C3; --accent-soft:#E6EDFB;
+  --dual:#7A4FB5; --oper:#0E8074; --crit:#C8841A;
+  --err:#B83227; --warn:#9A5F0E; --info:#2C63B0; --ok:#2E7D4F;
+  --f-ui:"Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-dis:"Literata", Georgia, "Times New Roman", serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0E1624; --card:#162133; --line:#2A3850; --text:#E5EAF2; --muted:#9CA9BC;
+    --accent:#86A7F2; --accent-soft:#1E2D4A; --err:#F08A80; --warn:#E7B45C; --info:#8DB4F0; --ok:#7CC79B;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0E1624; --card:#162133; --line:#2A3850; --text:#E5EAF2; --muted:#9CA9BC;
+  --accent:#86A7F2; --accent-soft:#1E2D4A; --err:#F08A80; --warn:#E7B45C; --info:#8DB4F0; --ok:#7CC79B;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--text);font-family:var(--f-ui);font-size:15px;line-height:1.5}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Encabezado */
+header.top{background:var(--ink);color:#EEF2F8;padding:28px 28px 22px}
+.top-in{max-width:1320px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:end}
+.marca h1{font-family:var(--f-dis);font-weight:700;font-size:44px;line-height:1;margin:0;letter-spacing:.5px}
+.marca p{margin:8px 0 0;color:#B9C4D6;max-width:60ch}
+.leyenda{display:flex;flex-wrap:wrap;gap:14px 18px;align-items:center;background:var(--ink2);border-radius:10px;padding:12px 16px}
+.leyenda figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;color:#C9D2E0}
+.leyenda svg{display:block}
+
+main{max-width:1320px;margin:0 auto;padding:22px 20px 40px;display:grid;gap:20px}
+.dos>*,main>*{min-width:0}
+.bloque{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+.bloque h2{font-family:var(--f-dis);font-size:21px;font-weight:700;margin:0 0 4px}
+.bloque .sub{color:var(--muted);margin:0 0 14px;font-size:14px;max-width:80ch}
+
+/* Barra de ingesta */
+.barra{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:500}
+.btn:hover{border-color:var(--accent)}
+.btn.primario{background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme="dark"] .btn.primario{color:#0E1624}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.primario{color:#0E1624}}
+.btn.sutil{border-color:transparent;color:var(--muted)}
+.btn.sutil:hover{color:var(--err);border-color:var(--line)}
+.sep{width:1px;height:26px;background:var(--line);margin:0 4px}
+.origen{margin-top:14px;padding:10px 14px;border-radius:8px;font-size:14px;display:none}
+.origen.prueba{display:block;background:#FFF4DC;color:#6B4A0A;border:1px solid #EBCB85}
+.origen.excel{display:block;background:var(--accent-soft);color:var(--text);border:1px solid var(--line)}
+.origen.usuario{display:block;background:transparent;color:var(--muted);border:1px dashed var(--line)}
+
+/* Pestañas */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 0 14px;overflow-x:auto}
+.tab{border:0;background:none;padding:10px 14px;cursor:pointer;color:var(--muted);font-weight:600;border-bottom:3px solid transparent;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--accent)}
+.tab .cnt{display:inline-block;min-width:22px;margin-left:6px;padding:0 6px;border-radius:10px;background:var(--paper);font-size:12px;color:var(--muted);text-align:center}
+.panel[hidden]{display:none}
+.form-proc{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.form-proc label{display:grid;gap:4px;font-size:13px;color:var(--muted);font-weight:500}
+.form-proc input,.form-proc textarea{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--card);color:var(--text);font:inherit}
+.form-proc .ancho{grid-column:1/-1}
+
+.tabla-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table.grid{border-collapse:collapse;width:100%;font-size:14px}
+table.grid th{text-align:left;font-weight:600;color:var(--muted);font-size:13px;background:var(--paper);padding:8px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.grid td{padding:4px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.grid tr:last-child td{border-bottom:0}
+table.grid td.n,table.grid th.n{width:34px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+table.grid td.na{color:var(--muted);font-size:13px;padding-left:10px}
+table.grid td.vacio{padding:18px;color:var(--muted);text-align:center}
+table.grid input,table.grid select{width:100%;border:1px solid transparent;border-radius:6px;padding:6px 8px;background:transparent;min-width:110px}
+table.grid input:hover,table.grid select:hover{border-color:var(--line)}
+table.grid input:focus,table.grid select:focus{border-color:var(--accent);background:var(--card)}
+table.grid select{background:var(--card)}
+tr.resaltada td{background:var(--accent-soft)}
+.quitar{border:0;background:none;color:var(--muted);cursor:pointer;padding:6px 8px;border-radius:6px;font-size:13px}
+.quitar:hover{color:var(--err);background:var(--paper)}
+.agregar{margin-top:10px;border:1px dashed var(--line);background:none;border-radius:8px;padding:8px 14px;cursor:pointer;color:var(--accent);font-weight:600}
+.agregar:hover{border-color:var(--accent)}
+.ayuda{font-size:13px;color:var(--muted);margin:10px 0 0;max-width:90ch}
+
+/* Lienzo */
+.lienzo-cab{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:flex-end;margin-bottom:12px}
+.zoom{display:flex;gap:6px;align-items:center}
+.zoom .btn{padding:6px 11px}
+.zoom span{min-width:52px;text-align:center;font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+#lienzo{background:#FFFFFF;border:1px solid var(--line);border-radius:10px;overflow:auto;max-height:78vh;min-height:220px;position:relative}
+#lienzo svg{display:block}
+#lienzo .vacio-lienzo{padding:60px 20px;text-align:center;color:#566377}
+#lienzo g.nodo{cursor:pointer}
+.exportar{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+
+.dos{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px}
+ul.msgs{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+ul.msgs li{padding:9px 12px;border-radius:8px;border-left:4px solid var(--line);background:var(--paper);font-size:14px}
+ul.msgs li b{font-weight:600;margin-right:6px}
+ul.msgs li.error{border-left-color:var(--err)} ul.msgs li.error b{color:var(--err)}
+ul.msgs li.aviso{border-left-color:var(--warn)} ul.msgs li.aviso b{color:var(--warn)}
+ul.msgs li.info{border-left-color:var(--info)} ul.msgs li.info b{color:var(--info)}
+ul.msgs li.ok{border-left-color:var(--ok)} ul.msgs li.ok b{color:var(--ok)}
+.sug{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;padding:12px;border:1px solid var(--line);border-radius:10px}
+.sug .chip{font-size:12px;font-weight:700;color:#fff;border-radius:6px;padding:3px 8px;white-space:nowrap}
+.chip.dual{background:#7A4FB5}.chip.oper{background:#0E8074}
+.sug p{margin:0;font-size:14px}
+.sug p.d{color:var(--muted);font-size:13px;margin-top:3px}
+.lista-sug{display:grid;gap:10px}
+.resumen{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.resumen span{font-size:13px;padding:3px 10px;border-radius:12px;background:var(--paper);color:var(--muted)}
+
+details.metodo summary{cursor:pointer;font-family:var(--f-dis);font-size:19px;font-weight:700}
+details.metodo .cuerpo{max-width:78ch;margin-top:10px}
+details.metodo p,details.metodo li{font-size:14.5px}
+details.metodo h3{font-size:16px;margin:18px 0 6px}
+
+footer.nota{max-width:1320px;margin:0 auto 30px;padding:0 20px;color:var(--muted);font-size:13px}
+footer.nota p{margin:0;padding-top:14px;border-top:1px solid var(--line)}
+
+/* Mensajes emergentes */
+#toasts{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));display:grid;gap:8px;z-index:50;max-width:min(420px,calc(100vw - 32px))}
+.toast{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--info);border-radius:10px;padding:10px 14px;box-shadow:0 6px 24px rgba(20,33,61,.18);font-size:14px}
+.toast b{margin-right:6px}
+.toast.error{border-left-color:var(--err)}.toast.error b{color:var(--err)}
+.toast.aviso{border-left-color:var(--warn)}.toast.aviso b{color:var(--warn)}
+.toast.ok{border-left-color:var(--ok)}.toast.ok b{color:var(--ok)}
+.toast.info b{color:var(--info)}
+
+@media (max-width:760px){
+  header.top{padding:22px 16px 18px}
+  .top-in{grid-template-columns:1fr}
+  .marca h1{font-size:36px}
+  main{padding:16px 10px 30px}
+  .bloque{padding:14px}
+  .sug{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <div class="marca">
+      <h1>Hodós</h1>
+      <p>Visualizador de procesos en notación BPMN 2.0. Diligencia el proceso en formularios o cárgalo desde la plantilla de Excel, y marca dónde se ejecutan los controles duales y operativos.</p>
+    </div>
+    <div class="leyenda" aria-label="Símbolos de la notación">
+      <figure><svg width="34" height="34" viewBox="0 0 34 34"><circle cx="17" cy="17" r="13" fill="#E9F6EF" stroke="#2E7D4F" stroke-width="2"/></svg><figcaption>Inicio</figcaption></figure>
+      <figure><svg width="46" height="34" viewBox="0 0 46 34"><rect x="2" y="4" width="42" height="26" rx="6" fill="#fff" stroke="#2B3A55" stroke-width="1.6"/></svg><figcaption>Tarea</figcaption></figure>
+      <figure><svg width="34" height="34" viewBox="0 0 34 34"><path d="M17 2 32 17 17 32 2 17Z" fill="#FFF8E6" stroke="#9A5F0E" stroke-width="1.6"/><path d="M12 12l10 10M22 12l-10 10" stroke="#9A5F0E" stroke-width="2.4"/></svg><figcaption>Exclusivo</figcaption></figure>
+      <figure><svg width="34" height="34" viewBox="0 0 34 34"><path d="M17 2 32 17 17 32 2 17Z" fill="#FFF8E6" stroke="#9A5F0E" stroke-width="1.6"/><path d="M17 10v14M10 17h14" stroke="#9A5F0E" stroke-width="2.6"/></svg><figcaption>Paralelo</figcaption></figure>
+      <figure><svg width="34" height="34" viewBox="0 0 34 34"><circle cx="17" cy="17" r="13" fill="#FBEAEA" stroke="#B83227" stroke-width="4"/></svg><figcaption>Fin</figcaption></figure>
+      <figure><svg width="40" height="34" viewBox="0 0 40 34"><rect x="3" y="8" width="34" height="18" rx="9" fill="#7A4FB5"/><text x="20" y="21" text-anchor="middle" font-size="11" font-weight="700" fill="#fff" font-family="Figtree,sans-serif">C1</text></svg><figcaption>Control dual</figcaption></figure>
+      <figure><svg width="40" height="34" viewBox="0 0 40 34"><rect x="3" y="8" width="34" height="18" rx="9" fill="#0E8074"/><text x="20" y="21" text-anchor="middle" font-size="11" font-weight="700" fill="#fff" font-family="Figtree,sans-serif">C2</text></svg><figcaption>Control operativo</figcaption></figure>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="bloque" aria-labelledby="t-ingesta">
+    <h2 id="t-ingesta">Datos del proceso</h2>
+    <p class="sub">Descarga la plantilla, diligénciala en Excel y cárgala, o construye el proceso directamente en los formularios de abajo. Ambos caminos alimentan el mismo modelo.</p>
+    <div class="barra">
+      <button class="btn" id="b-plantilla">Descargar plantilla Excel</button>
+      <button class="btn primario" id="b-cargar">Cargar plantilla diligenciada</button>
+      <input type="file" id="f-archivo" accept=".xlsx,.xls" hidden>
+      <span class="sep" aria-hidden="true"></span>
+      <button class="btn" id="b-exportar">Exportar datos a Excel</button>
+      <button class="btn" id="b-prueba">Cargar datos de prueba</button>
+      <button class="btn sutil" id="b-limpiar">Limpiar todo</button>
+    </div>
+    <div class="origen" id="origen" role="status"></div>
+  </section>
+
+  <section class="bloque" aria-labelledby="t-editor">
+    <h2 id="t-editor">Formularios</h2>
+    <p class="sub">Los cambios se reflejan en el diagrama mientras escribes. Si cambias el nombre de un carril o el ID de un elemento, sus referencias se actualizan solas.</p>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="proceso" aria-selected="true">Proceso</button>
+      <button class="tab" role="tab" data-tab="carriles" aria-selected="false">Carriles<span class="cnt" id="c-carriles">0</span></button>
+      <button class="tab" role="tab" data-tab="elementos" aria-selected="false">Elementos<span class="cnt" id="c-elementos">0</span></button>
+      <button class="tab" role="tab" data-tab="flujos" aria-selected="false">Flujos<span class="cnt" id="c-flujos">0</span></button>
+      <button class="tab" role="tab" data-tab="controles" aria-selected="false">Controles<span class="cnt" id="c-controles">0</span></button>
+    </div>
+    <div class="panel" id="panel-proceso" role="tabpanel">
+      <div class="form-proc">
+        <label>Nombre del proceso<input type="text" data-kind="proceso" data-f="nombre" id="p-nombre"></label>
+        <label>Dueño del proceso<input type="text" data-kind="proceso" data-f="dueno" id="p-dueno"></label>
+        <label>Versión<input type="text" data-kind="proceso" data-f="version" id="p-version"></label>
+        <label class="ancho">Objetivo del proceso<input type="text" data-kind="proceso" data-f="objetivo" id="p-objetivo"></label>
+      </div>
+    </div>
+    <div class="panel" id="panel-carriles" role="tabpanel" hidden></div>
+    <div class="panel" id="panel-elementos" role="tabpanel" hidden></div>
+    <div class="panel" id="panel-flujos" role="tabpanel" hidden></div>
+    <div class="panel" id="panel-controles" role="tabpanel" hidden></div>
+  </section>
+
+  <section class="bloque" aria-labelledby="t-diagrama">
+    <div class="lienzo-cab">
+      <div>
+        <h2 id="t-diagrama">Diagrama</h2>
+        <p class="sub" style="margin:0">Haz clic sobre un elemento para ubicarlo en el formulario.</p>
+      </div>
+      <div class="zoom">
+        <button class="btn" id="z-menos" aria-label="Alejar">−</button>
+        <span id="z-val">100 %</span>
+        <button class="btn" id="z-mas" aria-label="Acercar">+</button>
+        <button class="btn" id="z-ajustar">Ajustar al ancho</button>
+      </div>
+    </div>
+    <div id="lienzo"></div>
+    <div class="exportar">
+      <button class="btn" id="e-svg">Descargar SVG</button>
+      <button class="btn" id="e-png">Descargar PNG</button>
+      <button class="btn" id="e-bpmn">Descargar BPMN 2.0 (XML)</button>
+      <button class="btn" id="e-copiar">Copiar XML BPMN</button>
+    </div>
+    <p class="ayuda">El archivo BPMN incluye la geometría del diagrama, por lo que puede abrirse en herramientas compatibles con el estándar como Camunda Modeler o bpmn.io.</p>
+  </section>
+
+  <div class="dos">
+    <section class="bloque" aria-labelledby="t-valid">
+      <h2 id="t-valid">Validación de la notación</h2>
+      <p class="sub">Revisión de las reglas básicas de BPMN y de la coherencia entre las tablas.</p>
+      <div class="resumen" id="resumen"></div>
+      <ul class="msgs" id="validacion"></ul>
+    </section>
+    <section class="bloque" aria-labelledby="t-sug">
+      <h2 id="t-sug">Puntos de control sugeridos</h2>
+      <p class="sub">Reglas estructurales sobre actividades críticas, traspasos entre carriles y ciclos de reproceso. Al agregar una sugerencia se crea el control en la tabla para que lo completes.</p>
+      <div class="lista-sug" id="sugerencias"></div>
+    </section>
+  </div>
+
+  <section class="bloque">
+    <details class="metodo">
+      <summary>Cómo funciona Hodós</summary>
+      <div class="cuerpo">
+        <p>Hodós representa el proceso con la notación BPMN 2.0 del Object Management Group. El proceso se dibuja como un pool dividido en carriles, uno por cada rol o área responsable. Dentro de cada carril se ubican los eventos (inicio, intermedio y fin), las tareas y los gateways, conectados por flujos de secuencia.</p>
+        <h3>Gateways</h3>
+        <p>El gateway exclusivo toma un solo camino según una condición; el paralelo abre o cierra ramas que ocurren al mismo tiempo; el inclusivo activa una o varias ramas cuyas condiciones se cumplen. Toda salida de un gateway exclusivo o inclusivo debe tener su condición escrita en la tabla de flujos.</p>
+        <h3>Tipos de control</h3>
+        <p>Un control dual exige la intervención de dos personas independientes: una ejecuta y otra verifica o aprueba. Materializa el principio de los cuatro ojos y la segregación de funciones, y se reserva para actividades críticas como pagos, desembolsos, cambios en datos maestros o aprobaciones de alto monto. Un control operativo es una verificación incorporada en la operación diaria, como listas de chequeo, conciliaciones, cruces de información o validaciones del sistema. Cada control se clasifica además por su naturaleza (preventivo, detectivo o correctivo) y por su forma de ejecución (manual, automática o semiautomática).</p>
+        <h3>Reglas de sugerencia</h3>
+        <p>Hodós no interpreta texto; aplica reglas sobre la estructura que diligencias. Sugiere un control dual en toda actividad marcada como crítica que no lo tenga, y cuando dos actividades críticas consecutivas quedan en el mismo carril, porque la misma área ejecutaría y validaría. Sugiere un control operativo preventivo cuando el trabajo pasa de un carril a otro y la actividad receptora no tiene ningún control, y uno detectivo cuando el flujo forma un ciclo de reproceso.</p>
+        <h3>Referencias</h3>
+        <p>Object Management Group (2014). Business Process Model and Notation, versión 2.0.2. COSO (2013). Marco Integrado de Control Interno.</p>
+      </div>
+    </details>
+  </section>
+</main>
+
+<footer class="nota">
+  <p>Hodós versión 1.0. Desarrollado por Mario Sergio Gómez Rueda para uso académico. Cualquier otro uso se rige por las normas de propiedad intelectual. Sugerencias o inquietudes: mgomezr1@gmail.com</p>
+</footer>
+
+<div id="toasts" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ===== Catálogos ===== */
+const TIPOS = {inicio:"Evento de inicio", intermedio:"Evento intermedio", fin:"Evento de fin", tarea:"Tarea", exclusivo:"Gateway exclusivo", paralelo:"Gateway paralelo", inclusivo:"Gateway inclusivo"};
+const SUBTIPOS = ["Genérica","Usuario","Manual","Servicio"];
+const TIPOS_CONTROL = ["Dual","Operativo"];
+const NATURALEZAS = ["Preventivo","Detectivo","Correctivo"];
+const EJECUCIONES = ["Manual","Automático","Semiautomático"];
+const C = {task:"#2B3A55", gwFill:"#FFF8E6", gw:"#9A5F0E", startF:"#E9F6EF", start:"#2E7D4F", endF:"#FBEAEA", end:"#B83227",
+  mid:"#2C63B0", dual:"#7A4FB5", oper:"#0E8074", crit:"#C8841A", lane:"#C9D1DD", laneHead:"#F1F4F8", poolHead:"#E4E9F1",
+  edge:"#3A475C", txt:"#1B2433", muted:"#566377", sel:"#2B59C3"};
+
+/* ===== Estado ===== */
+const estado = {proceso:{nombre:"",dueno:"",objetivo:"",version:"1.0"}, carriles:[], elementos:[], flujos:[], controles:[], origen:"vacio"};
+let zoom = 1, seleccion = null, ultimoModelo = null, ultimaGeo = null;
+
+/* ===== Utilidades ===== */
+const $ = s => document.querySelector(s);
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+function norm(s){return String(s==null?"":s).normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();}
+function tipoDesdeTexto(t){
+  const n = norm(t); if(!n) return "tarea";
+  if(Object.prototype.hasOwnProperty.call(TIPOS,n)) return n;
+  if(n.includes("inicio")||n==="start") return "inicio";
+  if(n.includes("intermedio")) return "intermedio";
+  if(n.includes("evento de fin")||n==="fin"||n==="end"||n.includes("final")) return "fin";
+  if(n.includes("exclusiv")||n==="xor") return "exclusivo";
+  if(n.includes("paralel")||n==="and") return "paralelo";
+  if(n.includes("inclusiv")||n==="or") return "inclusivo";
+  return "tarea";
+}
+function opcionDesde(val, lista, def){
+  const n = norm(val); if(!n) return def;
+  const f = lista.find(x => norm(x)===n) || lista.find(x => norm(x).startsWith(n) || n.startsWith(norm(x)));
+  return f || def;
+}
+function siNo(v){const n=norm(v); return (n==="si"||n==="s"||n==="x"||n==="1"||n==="true"||n==="verdadero")?"Sí":"No";}
+function esCompuerta(t){return t==="exclusivo"||t==="paralelo"||t==="inclusivo";}
+function esEvento(t){return t==="inicio"||t==="fin"||t==="intermedio";}
+
+function aviso(tipo, texto){
+  const et = {error:"Error", aviso:"Advertencia", info:"Información", ok:"Listo"}[tipo]||"Información";
+  const d = document.createElement("div");
+  d.className = "toast "+tipo; d.innerHTML = "<b>"+et+".</b>"+esc(texto);
+  $("#toasts").appendChild(d);
+  setTimeout(()=>{d.remove();}, tipo==="error"?7000:4500);
+}
+
+/* ===== Descargas (claude.ai o navegador) ===== */
+let descargasP = null;
+function obtenerDescargas(){
+  if(descargasP) return descargasP;
+  if(window.claude && typeof window.claude.use==="function"){
+    descargasP = window.claude.use("downloads").catch(()=>null);
+  } else descargasP = Promise.resolve(null);
+  return descargasP;
+}
+const PERMITIDAS = ["png","svg","txt","json","csv","xlsx","html","pdf","md"];
+async function guardar(nombre, data, mime){
+  const dl = await obtenerDescargas();
+  if(dl){
+    let nom = nombre;
+    const ext = nombre.split(".").pop().toLowerCase();
+    if(!PERMITIDAS.includes(ext)) nom = nombre + ".txt";
+    try{
+      await dl.save({filename:nom, data: data instanceof Blob ? data : new Blob([data],{type:mime})});
+      if(nom!==nombre) aviso("info","Se guardó como "+nom+". Quítale la extensión .txt para abrirlo como ."+ext+".");
+      else aviso("ok","Archivo "+nom+" guardado.");
+    }catch(e){
+      const code = e && e.code;
+      if(code==="declined") aviso("info","Descarga cancelada.");
+      else if(code==="rate_limited") aviso("aviso","Ya hay una descarga pendiente de confirmar.");
+      else aviso("error","No fue posible guardar el archivo en esta vista.");
+    }
+    return;
+  }
+  const blob = data instanceof Blob ? data : new Blob([data],{type:mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href=url; a.download=nombre; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  aviso("ok","Archivo "+nombre+" descargado.");
+}
+function slug(s){return (norm(s)||"proceso").replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"").slice(0,50)||"proceso";}
+
+/* ===== Tablas ===== */
+const carrilesOpc = () => estado.carriles.map(c=>c.nombre.trim()).filter(Boolean).map(n=>[n,n]);
+const elemOpc = () => estado.elementos.filter(e=>e.id.trim()).map(e=>[e.id.trim(), e.id.trim()+"  "+(e.nombre||TIPOS[e.tipo]||"")]);
+const COLS = {
+  carriles:[{f:"nombre",t:"Carril (rol o área)",w:220,ph:"Ej. Tesorería"},{f:"descripcion",t:"Descripción",w:320}],
+  elementos:[
+    {f:"id",t:"ID",w:70},
+    {f:"tipo",t:"Tipo",sel:()=>Object.entries(TIPOS)},
+    {f:"nombre",t:"Nombre",w:260,ph:"Verbo en infinitivo y objeto"},
+    {f:"carril",t:"Carril",sel:carrilesOpc},
+    {f:"subtipo",t:"Subtipo de tarea",sel:()=>SUBTIPOS.map(s=>[s,s]),solo:r=>r.tipo==="tarea"},
+    {f:"critica",t:"Crítica",sel:()=>[["No","No"],["Sí","Sí"]],solo:r=>r.tipo==="tarea"}
+  ],
+  flujos:[{f:"origen",t:"Origen",sel:elemOpc},{f:"destino",t:"Destino",sel:elemOpc},{f:"condicion",t:"Condición (salidas de gateway)",w:220}],
+  controles:[
+    {f:"id",t:"ID",w:70},
+    {f:"elemento",t:"Elemento",sel:elemOpc},
+    {f:"tipo",t:"Tipo de control",sel:()=>TIPOS_CONTROL.map(s=>[s,s])},
+    {f:"naturaleza",t:"Naturaleza",sel:()=>NATURALEZAS.map(s=>[s,s])},
+    {f:"ejecucion",t:"Ejecución",sel:()=>EJECUCIONES.map(s=>[s,s])},
+    {f:"frecuencia",t:"Frecuencia",w:130},
+    {f:"responsable",t:"Responsable",w:150},
+    {f:"descripcion",t:"Descripción del control",w:280},
+    {f:"evidencia",t:"Evidencia",w:180}
+  ]
+};
+const VACIOS = {carriles:"Aún no hay carriles. Agrega uno por cada rol o área que participa.", elementos:"Aún no hay elementos. Empieza con un evento de inicio.", flujos:"Aún no hay flujos. Conecta los elementos en el orden en que ocurren.", controles:"Aún no hay controles. Agrégalos aquí o desde los puntos sugeridos."};
+const AGREGAR = {carriles:"Agregar carril", elementos:"Agregar elemento", flujos:"Agregar flujo", controles:"Agregar control"};
+const AYUDAS = {
+  elementos:"Marca como crítica la tarea cuyo error tendría impacto financiero, legal o reputacional. El subtipo indica si la ejecuta una persona en un sistema (usuario), sin sistema (manual) o el sistema solo (servicio).",
+  flujos:"Registra cada conexión en el orden del proceso. Para devolver el trabajo a un paso anterior, conecta hacia ese paso: Hodós lo dibuja como ciclo de reproceso.",
+  controles:"Un control puede asociarse a cualquier elemento, aunque lo usual es asociarlo a tareas."
+};
+
+function opcionesSelect(opts, val){
+  let h = '<option value="">Seleccione</option>', hay = false;
+  for(const [v,t] of opts){ if(v===val) hay=true; h += '<option value="'+esc(v)+'"'+(v===val?" selected":"")+">"+esc(t)+"</option>"; }
+  if(val && !hay) h += '<option value="'+esc(val)+'" selected>'+esc(val)+" (no existe)</option>";
+  return h;
+}
+function renderTabla(kind){
+  const cols = COLS[kind], filas = estado[kind];
+  let h = '<div class="tabla-wrap"><table class="grid"><thead><tr><th class="n">#</th>';
+  cols.forEach(c=>{h+="<th>"+esc(c.t)+"</th>";});
+  h += "<th></th></tr></thead><tbody>";
+  filas.forEach((r,i)=>{
+    const res = (kind==="elementos" && seleccion && r.id.trim()===seleccion) ? ' class="resaltada"' : "";
+    h += "<tr"+res+(kind==="elementos"?' data-eid="'+esc(r.id.trim())+'"':"")+'><td class="n">'+(i+1)+"</td>";
+    cols.forEach(c=>{
+      if(c.solo && !c.solo(r)){h+='<td class="na">No aplica</td>';return;}
+      const attrs = 'data-kind="'+kind+'" data-i="'+i+'" data-f="'+c.f+'" aria-label="'+esc(c.t)+" fila "+(i+1)+'"';
+      if(c.sel) h += "<td><select "+attrs+">"+opcionesSelect(c.sel(), r[c.f]||"")+"</select></td>";
+      else h += '<td><input type="text" '+attrs+' style="min-width:'+(c.w||120)+'px" value="'+esc(r[c.f]||"")+'"'+(c.ph?' placeholder="'+esc(c.ph)+'"':"")+"></td>";
+    });
+    h += '<td><button class="quitar" data-quitar="'+kind+":"+i+'" aria-label="Quitar fila '+(i+1)+'">Quitar</button></td></tr>';
+  });
+  if(!filas.length) h += '<tr><td colspan="'+(cols.length+2)+'" class="vacio">'+VACIOS[kind]+"</td></tr>";
+  h += "</tbody></table></div>";
+  h += '<button class="agregar" data-agregar="'+kind+'">'+AGREGAR[kind]+"</button>";
+  if(AYUDAS[kind]) h += '<p class="ayuda">'+AYUDAS[kind]+"</p>";
+  document.getElementById("panel-"+kind).innerHTML = h;
+}
+function renderTablas(excepto){["carriles","elementos","flujos","controles"].forEach(k=>{if(k!==excepto) renderTabla(k);});}
+function renderProceso(){ ["nombre","dueno","version","objetivo"].forEach(f=>{ $("#p-"+f).value = estado.proceso[f]||""; }); }
+function contadores(){ ["carriles","elementos","flujos","controles"].forEach(k=>{ $("#c-"+k).textContent = estado[k].length; }); }
+
+function siguienteId(lista, pref){
+  let n = 1; const usados = new Set(lista.map(x=>(x.id||"").trim()));
+  while(usados.has(pref+n)) n++; return pref+n;
+}
+function prefijo(tipo){return {inicio:"I",fin:"F",intermedio:"E",tarea:"T",exclusivo:"G",paralelo:"G",inclusivo:"G"}[tipo]||"T";}
+function nuevaFila(kind){
+  if(kind==="carriles") return {nombre:"",descripcion:""};
+  if(kind==="elementos"){
+    const tipo = estado.elementos.length ? "tarea" : "inicio";
+    const car = carrilesOpc(); 
+    return {id:siguienteId(estado.elementos,prefijo(tipo)), tipo, nombre:"", carril: car.length?car[0][0]:"", subtipo:"Genérica", critica:"No"};
+  }
+  if(kind==="flujos"){
+    const ult = estado.flujos.length ? estado.flujos[estado.flujos.length-1].destino : "";
+    return {origen:ult||"", destino:"", condicion:""};
+  }
+  return {id:siguienteId(estado.controles,"C"), elemento:"", tipo:"Operativo", naturaleza:"Preventivo", ejecucion:"Manual", frecuencia:"Cada ejecución", responsable:"", descripcion:"", evidencia:""};
+}
+
+/* ===== Origen de los datos ===== */
+function pintarOrigen(){
+  const o = $("#origen"); o.className = "origen";
+  if(estado.origen==="prueba"){o.classList.add("prueba"); o.textContent="Estás viendo datos de prueba: un proceso ficticio de pago a proveedores creado solo para demostrar el funcionamiento. No corresponde a ninguna organización real.";}
+  else if(estado.origen==="prueba-editada"){o.classList.add("prueba"); o.textContent="Datos de prueba con modificaciones del usuario. Usa Limpiar todo para comenzar un proceso propio.";}
+  else if(estado.origen==="excel"){o.classList.add("excel"); o.textContent="Datos cargados desde la plantilla de Excel"+(estado.archivo?" ("+estado.archivo+")":"")+". Puedes seguir ajustándolos en los formularios.";}
+  else if(estado.origen==="usuario"){o.classList.add("usuario"); o.textContent="Datos ingresados directamente en el aplicativo.";}
+}
+function marcarEdicion(){
+  if(estado.origen==="prueba") estado.origen="prueba-editada";
+  else if(estado.origen==="vacio") estado.origen="usuario";
+  pintarOrigen();
+}
+
+/* ===== Eventos de edición ===== */
+let temporizador = null;
+function programar(){ clearTimeout(temporizador); temporizador = setTimeout(actualizar, 180); }
+
+document.addEventListener("focusin", e=>{ const t=e.target; if(t.dataset && t.dataset.kind) t.dataset.prev = t.value; });
+document.addEventListener("input", e=>{
+  const t = e.target, k = t.dataset && t.dataset.kind; if(!k) return;
+  if(k==="proceso") estado.proceso[t.dataset.f] = t.value;
+  else estado[k][+t.dataset.i][t.dataset.f] = t.value;
+  marcarEdicion(); programar();
+});
+document.addEventListener("change", e=>{
+  const t = e.target, k = t.dataset && t.dataset.kind; if(!k || k==="proceso") return;
+  const f = t.dataset.f, viejo = (t.dataset.prev||"").trim(), nuevo = t.value.trim();
+  if(k==="carriles" && f==="nombre" && viejo && viejo!==nuevo && !estado.carriles.some(c=>c.nombre.trim()===viejo)){
+    estado.elementos.forEach(el=>{ if(el.carril===viejo) el.carril = nuevo; });
+  }
+  if(k==="elementos" && f==="id" && viejo && viejo!==nuevo && !estado.elementos.some(x=>x.id.trim()===viejo)){
+    estado.flujos.forEach(fl=>{ if(fl.origen===viejo) fl.origen=nuevo; if(fl.destino===viejo) fl.destino=nuevo; });
+    estado.controles.forEach(c=>{ if(c.elemento===viejo) c.elemento=nuevo; });
+    if(seleccion===viejo) seleccion = nuevo;
+  }
+  t.dataset.prev = t.value;
+  if(k==="elementos" && f==="tipo") renderTabla("elementos");
+  renderTablas(k); actualizar();
+});
+document.addEventListener("click", e=>{
+  const q = e.target.closest("[data-quitar]");
+  if(q){ const [k,i] = q.dataset.quitar.split(":"); estado[k].splice(+i,1); marcarEdicion(); renderTablas(); actualizar(); return; }
+  const a = e.target.closest("[data-agregar]");
+  if(a){
+    const k = a.dataset.agregar; estado[k].push(nuevaFila(k)); marcarEdicion(); renderTablas(); actualizar();
+    const inputs = document.querySelectorAll('#panel-'+k+' tbody tr:last-child input, #panel-'+k+' tbody tr:last-child select');
+    const foco = k==="elementos" ? inputs[2] : inputs[0]; if(foco) foco.focus();
+    return;
+  }
+  const tb = e.target.closest(".tab"); if(tb) activarTab(tb.dataset.tab);
+});
+function activarTab(nombre){
+  document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab===nombre?"true":"false"));
+  document.querySelectorAll(".panel").forEach(p=>{ p.hidden = p.id!=="panel-"+nombre; });
+}
+
+/* ===== Modelo ===== */
+function construirModelo(){
+  const vistos = new Set(), E = [];
+  estado.elementos.forEach(e=>{ const id=(e.id||"").trim(); if(!id||vistos.has(id)) return; vistos.add(id); E.push(Object.assign({},e,{id, tipo:TIPOS[e.tipo]?e.tipo:"tarea"})); });
+  const byId = new Map(E.map(e=>[e.id,e]));
+  const lanes = []; estado.carriles.forEach(c=>{ const n=(c.nombre||"").trim(); if(n && !lanes.includes(n)) lanes.push(n); });
+  let sinCarril = false;
+  E.forEach(e=>{ if(!lanes.includes(e.carril)){ e.carril = "Sin carril asignado"; sinCarril = true; } });
+  if(sinCarril) lanes.push("Sin carril asignado");
+  const edges = []; const claves = new Set();
+  estado.flujos.forEach((f,i)=>{
+    const o=(f.origen||"").trim(), d=(f.destino||"").trim();
+    if(!byId.has(o)||!byId.has(d)||o===d) return;
+    const k=o+"→"+d; if(claves.has(k)) return; claves.add(k);
+    edges.push({i, o, d, cond:(f.condicion||"").trim(), back:false});
+  });
+  const ctrl = new Map();
+  estado.controles.forEach(c=>{ const el=(c.elemento||"").trim(); if(!byId.has(el)) return; if(!ctrl.has(el)) ctrl.set(el,[]); ctrl.get(el).push(c); });
+  // Detección de ciclos (flujos de retorno)
+  const out = new Map(E.map(e=>[e.id,[]])); edges.forEach(ed=>out.get(ed.o).push(ed));
+  const color = new Map(E.map(e=>[e.id,0]));
+  function dfs(u){ color.set(u,1); for(const ed of out.get(u)){ const c=color.get(ed.d); if(c===1) ed.back=true; else if(c===0) dfs(ed.d); } color.set(u,2); }
+  E.filter(e=>e.tipo==="inicio").forEach(e=>{ if(color.get(e.id)===0) dfs(e.id); });
+  E.forEach(e=>{ if(color.get(e.id)===0) dfs(e.id); });
+  // Rangos por camino más largo
+  const rank = new Map(E.map(e=>[e.id,0])), indeg = new Map(E.map(e=>[e.id,0]));
+  edges.forEach(ed=>{ if(!ed.back) indeg.set(ed.d, indeg.get(ed.d)+1); });
+  const cola = E.filter(e=>indeg.get(e.id)===0).map(e=>e.id);
+  while(cola.length){ const u=cola.shift(); for(const ed of out.get(u)){ if(ed.back) continue; rank.set(ed.d, Math.max(rank.get(ed.d), rank.get(u)+1)); indeg.set(ed.d, indeg.get(ed.d)-1); if(indeg.get(ed.d)===0) cola.push(ed.d); } }
+  return {E, byId, lanes, edges, ctrl, rank};
+}
+
+/* ===== Geometría ===== */
+const G = {POOL:34, LH:34, PADX:34, COLW:190, ROWH:124, TOP:46};
+function dims(t){ if(t==="tarea") return {hw:66,hh:33}; if(esCompuerta(t)) return {hw:25,hh:25}; return {hw:18,hh:18}; }
+function geometria(m){
+  const orden = m.E.slice().sort((a,b)=>m.rank.get(a.id)-m.rank.get(b.id));
+  const cont = new Map(), slot = new Map(), laneSlots = new Map(m.lanes.map(l=>[l,1]));
+  orden.forEach(e=>{ const k=e.carril+"|"+m.rank.get(e.id); const s=cont.get(k)||0; cont.set(k,s+1); slot.set(e.id,s); laneSlots.set(e.carril, Math.max(laneSlots.get(e.carril), s+1)); });
+  const maxRank = m.E.length ? Math.max(...m.E.map(e=>m.rank.get(e.id))) : 0;
+  const X0 = G.POOL + G.LH + G.PADX;
+  const W = X0 + maxRank*G.COLW + 150 + G.PADX;
+  const lanesG = []; let y = G.TOP;
+  m.lanes.forEach(l=>{ const h = laneSlots.get(l)*G.ROWH + 16; lanesG.push({nombre:l, y, h}); y += h; });
+  const H = y;
+  const pos = new Map();
+  m.E.forEach(e=>{
+    const L = lanesG.find(x=>x.nombre===e.carril), d = dims(e.tipo);
+    pos.set(e.id, {cx: X0 + m.rank.get(e.id)*G.COLW + 70, cy: L.y + 8 + slot.get(e.id)*G.ROWH + G.ROWH/2, hw:d.hw, hh:d.hh});
+  });
+  const rutas = m.edges.map(ed=>{
+    const s = pos.get(ed.o), t = pos.get(ed.d), so = m.byId.get(ed.o), de = m.byId.get(ed.d);
+    let pts, lab = null;
+    if(ed.back){
+      const top = Math.min(s.cy-s.hh, t.cy-t.hh) - 24;
+      pts = [[s.cx, s.cy-s.hh],[s.cx, top],[t.cx, top],[t.cx, t.cy-t.hh]];
+      lab = {x:(s.cx+t.cx)/2, y:top-6, a:"middle"};
+    } else if(Math.abs(s.cy-t.cy)<1){
+      pts = [[s.cx+s.hw, s.cy],[t.cx-t.hw, t.cy]];
+      lab = {x:s.cx+s.hw+6, y:s.cy-7, a:"start"};
+    } else if(esCompuerta(so.tipo) && t.cx > s.cx){
+      const sy = t.cy < s.cy ? s.cy-s.hh : s.cy+s.hh;
+      pts = [[s.cx, sy],[s.cx, t.cy],[t.cx-t.hw, t.cy]];
+      lab = {x:s.cx+8, y:t.cy-7, a:"start"};
+    } else if(esCompuerta(de.tipo) && t.cx > s.cx){
+      const ty = s.cy < t.cy ? t.cy-t.hh : t.cy+t.hh;
+      pts = [[s.cx+s.hw, s.cy],[t.cx, s.cy],[t.cx, ty]];
+      lab = {x:s.cx+s.hw+6, y:s.cy-7, a:"start"};
+    } else {
+      const mx = Math.round((s.cx+s.hw + t.cx-t.hw)/2);
+      pts = [[s.cx+s.hw, s.cy],[mx, s.cy],[mx, t.cy],[t.cx-t.hw, t.cy]];
+      lab = {x:s.cx+s.hw+6, y:s.cy-7, a:"start"};
+    }
+    return {ed, pts, lab};
+  });
+  return {W, H, lanesG, pos, rutas, X0};
+}
+
+/* ===== Dibujo SVG ===== */
+function partir(texto, max, lineas){
+  const pal = String(texto||"").split(/\s+/).filter(Boolean), out = []; let cur = "";
+  pal.forEach(p=>{ if((cur+" "+p).trim().length<=max) cur=(cur+" "+p).trim(); else { if(cur) out.push(cur); cur=p; } });
+  if(cur) out.push(cur);
+  if(out.length>lineas){ const r = out.slice(0,lineas); r[lineas-1] = r[lineas-1].slice(0,max-1)+"…"; return r; }
+  return out;
+}
+function textoMulti(x, y, lineas, attrs, lh){
+  lh = lh||15; const y0 = y - (lineas.length-1)*lh/2;
+  return "<text "+attrs+">"+lineas.map((l,i)=>'<tspan x="'+x+'" y="'+(y0+i*lh)+'">'+esc(l)+"</tspan>").join("")+"</text>";
+}
+function iconoSubtipo(sub, x, y){
+  if(sub==="Usuario") return '<g stroke="'+C.task+'" fill="none" stroke-width="1.3"><circle cx="'+(x+6)+'" cy="'+(y+4)+'" r="3.2"/><path d="M'+x+" "+(y+14)+"c0-4 2.6-6 6-6s6 2 6 6"+'"/></g>';
+  if(sub==="Manual") return '<g stroke="'+C.task+'" fill="none" stroke-width="1.3"><path d="M'+x+" "+(y+12)+"h9a3 3 0 0 0 0-6h-3M"+(x+6)+" "+(y+6)+"h5a2 2 0 0 0 0-4h-9l-2 3v7"+'"/></g>';
+  if(sub==="Servicio") return '<g stroke="'+C.task+'" fill="none" stroke-width="1.3"><circle cx="'+(x+7)+'" cy="'+(y+7)+'" r="5.5" stroke-dasharray="2.2 1.6" stroke-width="2.4"/><circle cx="'+(x+7)+'" cy="'+(y+7)+'" r="2"/></g>';
+  return "";
+}
+function svgDiagrama(m, g, opts){
+  opts = opts||{};
+  const LEY = 46, W = g.W, H = g.H + LEY + 10;
+  const F = 'font-family="Figtree, Segoe UI, Arial, sans-serif"';
+  let s = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+" "+H+'" width="'+W+'" height="'+H+'" '+F+'>';
+  s += '<defs><marker id="flecha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="'+C.edge+'"/></marker></defs>';
+  s += '<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="#FFFFFF"/>';
+  const titulo = estado.proceso.nombre || "Proceso sin nombre";
+  s += '<text x="0" y="24" font-size="17" font-weight="700" fill="'+C.txt+'">'+esc(titulo)+'</text>';
+  const meta = [estado.proceso.dueno?("Dueño: "+estado.proceso.dueno):"", estado.proceso.version?("Versión "+estado.proceso.version):""].filter(Boolean).join("   ");
+  if(meta) s += '<text x="'+W+'" y="24" font-size="12" text-anchor="end" fill="'+C.muted+'">'+esc(meta)+"</text>";
+  // Pool y carriles
+  const pY = G.TOP, pH = g.H - G.TOP;
+  s += '<rect x="0.5" y="'+pY+'" width="'+(W-1)+'" height="'+pH+'" fill="#fff" stroke="'+C.task+'" stroke-width="1.4"/>';
+  s += '<rect x="0.5" y="'+pY+'" width="'+G.POOL+'" height="'+pH+'" fill="'+C.poolHead+'" stroke="'+C.task+'" stroke-width="1.4"/>';
+  s += '<text transform="translate('+(G.POOL/2+5)+","+(pY+pH/2)+') rotate(-90)" text-anchor="middle" font-size="13" font-weight="700" fill="'+C.txt+'">'+esc(partir(titulo,40,1)[0]||"")+"</text>";
+  g.lanesG.forEach((L,i)=>{
+    s += '<rect x="'+G.POOL+'" y="'+L.y+'" width="'+(W-G.POOL-0.5)+'" height="'+L.h+'" fill="'+(i%2?"#FAFBFD":"#FFFFFF")+'" stroke="'+C.lane+'" stroke-width="1"/>';
+    s += '<rect x="'+G.POOL+'" y="'+L.y+'" width="'+G.LH+'" height="'+L.h+'" fill="'+C.laneHead+'" stroke="'+C.lane+'" stroke-width="1"/>';
+    const lin = partir(L.nombre, Math.max(8, Math.floor(L.h/7.5)), 2);
+    s += '<g transform="translate('+(G.POOL+G.LH/2)+","+(L.y+L.h/2)+') rotate(-90)">'+textoMulti(0, 4, lin, 'text-anchor="middle" font-size="12" font-weight="600" fill="'+C.txt+'"', 13)+"</g>";
+  });
+  s += '<rect x="0.5" y="'+pY+'" width="'+(W-1)+'" height="'+pH+'" fill="none" stroke="'+C.task+'" stroke-width="1.4"/>';
+  // Flujos
+  g.rutas.forEach(r=>{
+    const d = r.pts.map((p,i)=>(i?"L":"M")+p[0]+" "+p[1]).join(" ");
+    s += '<path d="'+d+'" fill="none" stroke="'+C.edge+'" stroke-width="1.4"'+(r.ed.back?' stroke-dasharray="6 4"':"")+' marker-end="url(#flecha)"/>';
+    if(r.ed.cond) s += '<text x="'+r.lab.x+'" y="'+r.lab.y+'" text-anchor="'+r.lab.a+'" font-size="11.5" font-weight="600" fill="'+C.muted+'" paint-order="stroke" stroke="#fff" stroke-width="3">'+esc(r.ed.cond)+"</text>";
+  });
+  // Nodos
+  m.E.forEach(e=>{
+    const p = g.pos.get(e.id), sel = e.id===seleccion;
+    s += '<g class="nodo" data-id="'+esc(e.id)+'"><title>'+esc(e.id+" "+(e.nombre||TIPOS[e.tipo]))+"</title>";
+    if(e.tipo==="tarea"){
+      const x = p.cx-p.hw, y = p.cy-p.hh;
+      s += '<rect x="'+x+'" y="'+y+'" width="'+(2*p.hw)+'" height="'+(2*p.hh)+'" rx="9" fill="#fff" stroke="'+(sel?C.sel:C.task)+'" stroke-width="'+(sel?3:1.6)+'"/>';
+      if(e.critica==="Sí") s += '<rect x="'+(x+1)+'" y="'+(y+2*p.hh-6)+'" width="'+(2*p.hw-2)+'" height="5" rx="2" fill="'+C.crit+'"/>';
+      s += iconoSubtipo(e.subtipo, x+6, y+5);
+      s += '<text x="'+(x+2*p.hw-6)+'" y="'+(y+2*p.hh-(e.critica==="Sí"?10:5))+'" text-anchor="end" font-size="10" fill="'+C.muted+'">'+esc(e.id)+"</text>";
+      s += textoMulti(p.cx, p.cy+1, partir(e.nombre||"Tarea sin nombre", 19, 3), 'text-anchor="middle" font-size="12" fill="'+C.txt+'"', 14);
+    } else if(esCompuerta(e.tipo)){
+      const {cx,cy,hw} = p, st = sel?C.sel:C.gw;
+      s += '<path d="M'+cx+" "+(cy-hw)+" L"+(cx+hw)+" "+cy+" L"+cx+" "+(cy+hw)+" L"+(cx-hw)+" "+cy+' Z" fill="'+C.gwFill+'" stroke="'+st+'" stroke-width="'+(sel?3:1.6)+'"/>';
+      if(e.tipo==="exclusivo") s += '<path d="M'+(cx-8)+" "+(cy-8)+"l16 16M"+(cx+8)+" "+(cy-8)+'l-16 16" stroke="'+C.gw+'" stroke-width="3"/>';
+      if(e.tipo==="paralelo") s += '<path d="M'+cx+" "+(cy-11)+"v22M"+(cx-11)+" "+cy+'h22" stroke="'+C.gw+'" stroke-width="3.2"/>';
+      if(e.tipo==="inclusivo") s += '<circle cx="'+cx+'" cy="'+cy+'" r="10" fill="none" stroke="'+C.gw+'" stroke-width="3"/>';
+      if(e.nombre) s += textoMulti(cx, cy-hw-20, partir(e.nombre, 22, 2), 'text-anchor="middle" font-size="11.5" font-weight="600" fill="'+C.txt+'"', 13);
+    } else {
+      const {cx,cy,hw} = p;
+      const fill = e.tipo==="inicio"?C.startF:e.tipo==="fin"?C.endF:"#EEF3FB";
+      const st = sel?C.sel:(e.tipo==="inicio"?C.start:e.tipo==="fin"?C.end:C.mid);
+      s += '<circle cx="'+cx+'" cy="'+cy+'" r="'+hw+'" fill="'+fill+'" stroke="'+st+'" stroke-width="'+(e.tipo==="fin"?4:sel?3:2)+'"/>';
+      if(e.tipo==="intermedio") s += '<circle cx="'+cx+'" cy="'+cy+'" r="'+(hw-4)+'" fill="none" stroke="'+st+'" stroke-width="1.5"/>';
+      if(e.nombre) s += textoMulti(cx, cy+hw+22, partir(e.nombre, 22, 2), 'text-anchor="middle" font-size="11.5" fill="'+C.txt+'"', 13);
+    }
+    // Controles asociados
+    const cs = m.ctrl.get(e.id)||[];
+    let bx = p.cx + p.hw + 4;
+    cs.slice().reverse().forEach(c=>{
+      const et = (c.id||"C").trim()||"C", w = 12 + et.length*6.6, esDual = norm(c.tipo)==="dual";
+      bx -= w + 3;
+      s += '<g><title>'+esc((esDual?"Control dual ":"Control operativo ")+et+": "+(c.descripcion||"sin descripción"))+"</title>";
+      s += '<rect x="'+bx+'" y="'+(p.cy-p.hh-10)+'" width="'+w+'" height="18" rx="9" fill="'+(esDual?C.dual:C.oper)+'" stroke="#fff" stroke-width="1.5"/>';
+      s += '<text x="'+(bx+w/2)+'" y="'+(p.cy-p.hh+3)+'" text-anchor="middle" font-size="10.5" font-weight="700" fill="#fff">'+esc(et)+"</text></g>";
+    });
+    s += "</g>";
+  });
+  // Leyenda
+  const ly = g.H + 26;
+  s += '<g font-size="11.5" fill="'+C.muted+'">';
+  s += '<rect x="0" y="'+(ly-11)+'" width="26" height="14" rx="7" fill="'+C.dual+'"/><text x="32" y="'+ly+'">Control dual</text>';
+  s += '<rect x="120" y="'+(ly-11)+'" width="26" height="14" rx="7" fill="'+C.oper+'"/><text x="152" y="'+ly+'">Control operativo</text>';
+  s += '<rect x="272" y="'+(ly-6)+'" width="26" height="5" rx="2" fill="'+C.crit+'"/><text x="304" y="'+ly+'">Actividad crítica</text>';
+  s += '<path d="M410 '+(ly-4)+'h26" stroke="'+C.edge+'" stroke-width="1.4" stroke-dasharray="6 4"/><text x="442" y="'+ly+'">Flujo de reproceso</text>';
+  s += "</g></svg>";
+  return s;
+}
+
+/* ===== Validación ===== */
+function validar(m){
+  const msg = []; const add=(sev,t)=>msg.push({sev,t});
+  const E = estado.elementos, ids = new Map();
+  if(!estado.carriles.filter(c=>c.nombre.trim()).length && E.length) add("aviso","No hay carriles definidos. Cada elemento debe pertenecer a un rol o área.");
+  const nomC = new Map(); estado.carriles.forEach((c,i)=>{ const n=c.nombre.trim(); if(!n){add("error","La fila "+(i+1)+" de Carriles no tiene nombre.");return;} if(nomC.has(n)) add("error","El carril "+n+" está repetido."); nomC.set(n,1); });
+  E.forEach((e,i)=>{
+    const id = (e.id||"").trim();
+    if(!id){ add("error","La fila "+(i+1)+" de Elementos no tiene ID y no se dibuja."); return; }
+    if(ids.has(id)) add("error","El ID "+id+" está repetido en Elementos; solo se dibuja la primera aparición.");
+    ids.set(id,e);
+    if(!e.carril || !nomC.has(e.carril)) add("error","El elemento "+id+" no tiene un carril válido.");
+    if(e.tipo==="tarea" && !(e.nombre||"").trim()) add("aviso","La tarea "+id+" no tiene nombre.");
+  });
+  if(m.E.length){
+    if(!m.E.some(e=>e.tipo==="inicio")) add("error","El proceso no tiene evento de inicio.");
+    if(!m.E.some(e=>e.tipo==="fin")) add("error","El proceso no tiene evento de fin.");
+  }
+  estado.flujos.forEach((f,i)=>{
+    const o=(f.origen||"").trim(), d=(f.destino||"").trim();
+    if(!o||!d) add("error","El flujo de la fila "+(i+1)+" está incompleto.");
+    else if(!m.byId.has(o)||!m.byId.has(d)) add("error","El flujo de la fila "+(i+1)+" apunta a un elemento que no existe.");
+    else if(o===d) add("error","El flujo de la fila "+(i+1)+" conecta "+o+" consigo mismo.");
+  });
+  const cF = new Set(); estado.flujos.forEach(f=>{ const k=f.origen+"→"+f.destino; if(f.origen&&f.destino){ if(cF.has(k)) add("aviso","El flujo de "+f.origen+" a "+f.destino+" está repetido."); cF.add(k);} });
+  const inc = new Map(m.E.map(e=>[e.id,[]])), out = new Map(m.E.map(e=>[e.id,[]]));
+  m.edges.forEach(ed=>{ out.get(ed.o).push(ed); inc.get(ed.d).push(ed); });
+  m.E.forEach(e=>{
+    const ni = inc.get(e.id).length, no = out.get(e.id).length;
+    if(e.tipo==="inicio" && ni) add("error","El evento de inicio "+e.id+" no puede recibir flujos.");
+    if(e.tipo==="fin" && no) add("error","El evento de fin "+e.id+" no puede tener flujos de salida.");
+    if(!ni && !no) add("aviso","El elemento "+e.id+" está aislado: no tiene flujos.");
+    else {
+      if(e.tipo!=="inicio" && !ni) add("aviso","El elemento "+e.id+" no tiene flujo de entrada.");
+      if(e.tipo!=="fin" && !no) add("aviso","El elemento "+e.id+" no tiene flujo de salida.");
+    }
+    if(esCompuerta(e.tipo)){
+      if(ni<=1 && no<=1 && (ni+no)>0) add("aviso","El gateway "+e.id+" ni divide ni une caminos; revisa si es necesario.");
+      if((e.tipo==="exclusivo"||e.tipo==="inclusivo") && no>1){
+        const sin = out.get(e.id).filter(ed=>!ed.cond).length;
+        if(sin) add("aviso","El gateway "+e.id+" tiene "+sin+" salida(s) sin condición.");
+      }
+    }
+  });
+  // Alcance desde el inicio
+  const ini = m.E.filter(e=>e.tipo==="inicio").map(e=>e.id);
+  if(ini.length){
+    const vis = new Set(ini), pila = ini.slice();
+    while(pila.length){ const u=pila.pop(); out.get(u).forEach(ed=>{ if(!vis.has(ed.d)){vis.add(ed.d); pila.push(ed.d);} }); }
+    const no = m.E.filter(e=>!vis.has(e.id) && (inc.get(e.id).length||out.get(e.id).length)).map(e=>e.id);
+    if(no.length) add("aviso","No se llega desde el inicio a: "+no.join(", ")+".");
+  }
+  const idsC = new Set();
+  estado.controles.forEach((c,i)=>{
+    const id=(c.id||"").trim(), el=(c.elemento||"").trim();
+    if(!id) add("error","La fila "+(i+1)+" de Controles no tiene ID.");
+    else if(idsC.has(id)) add("error","El control "+id+" está repetido."); idsC.add(id);
+    if(!el) add("error","El control "+(id||"de la fila "+(i+1))+" no está asociado a ningún elemento.");
+    else if(!m.byId.has(el)) add("error","El control "+(id||"de la fila "+(i+1))+" apunta al elemento "+el+", que no existe.");
+    else if(m.byId.get(el).tipo!=="tarea") add("info","El control "+id+" está asociado a "+el+", que no es una tarea.");
+    if(!c.tipo) add("error","El control "+(id||"de la fila "+(i+1))+" no tiene tipo.");
+    if(!(c.descripcion||"").trim()) add("aviso","El control "+(id||"de la fila "+(i+1))+" no tiene descripción.");
+  });
+  if(!E.length) add("info","Agrega elementos o carga una plantilla para iniciar la validación.");
+  else if(!msg.some(x=>x.sev==="error"||x.sev==="aviso")) add("ok","El modelo cumple las reglas básicas de la notación.");
+  return msg;
+}
+
+/* ===== Sugerencias de control ===== */
+function sugerir(m){
+  const res = new Map();
+  const tiene = (id,t)=> (m.ctrl.get(id)||[]).some(c=>norm(c.tipo)===norm(t));
+  const agregar = (id,tipo,nat,motivo,desc)=>{
+    const k=id+"|"+tipo;
+    if(res.has(k)){ res.get(k).motivos.push(motivo); return; }
+    res.set(k,{id,tipo,nat,motivos:[motivo],desc});
+  };
+  m.E.filter(e=>e.tipo==="tarea"&&e.critica==="Sí"&&!tiene(e.id,"Dual")).forEach(e=>{
+    agregar(e.id,"Dual","Preventivo","La actividad "+e.id+" está marcada como crítica y no tiene control dual.",
+      "Verificación independiente de "+(e.nombre||e.id).toLowerCase()+" por una segunda persona antes de continuar.");
+  });
+  m.edges.filter(ed=>!ed.back).forEach(ed=>{
+    const u=m.byId.get(ed.o), v=m.byId.get(ed.d);
+    if(u.tipo==="tarea"&&v.tipo==="tarea"&&u.critica==="Sí"&&v.critica==="Sí"&&u.carril===v.carril&&!tiene(v.id,"Dual"))
+      agregar(v.id,"Dual","Preventivo",u.id+" y "+v.id+" son críticas, consecutivas y quedan en el mismo carril ("+u.carril+"). Conviene segregar funciones.",
+        "Aprobación de "+(v.nombre||v.id).toLowerCase()+" por una persona distinta a quien ejecutó "+u.id+".");
+    if(v.tipo==="tarea"&&u.carril!==v.carril&&!(m.ctrl.get(v.id)||[]).length)
+      agregar(v.id,"Operativo","Preventivo","El trabajo pasa de "+u.carril+" a "+v.carril+" en "+v.id+". Un control de recepción evita que avancen insumos incompletos.",
+        "Verificación de completitud y calidad de lo recibido antes de "+(v.nombre||v.id).toLowerCase()+".");
+  });
+  m.edges.filter(ed=>ed.back).forEach(ed=>{
+    const u=m.byId.get(ed.o), v=m.byId.get(ed.d), obj = u.tipo==="tarea"?u:v;
+    if(!tiene(obj.id,"Operativo"))
+      agregar(obj.id,"Operativo","Detectivo","El flujo de "+u.id+" hacia "+v.id+" forma un ciclo de reproceso.",
+        "Registro de cada devolución con su causa y seguimiento periódico de la tasa de reproceso.");
+  });
+  return Array.from(res.values());
+}
+let sugerenciasActuales = [];
+function pintarSugerencias(lista){
+  sugerenciasActuales = lista;
+  const cont = $("#sugerencias");
+  if(!ultimoModelo || !ultimoModelo.E.length){ cont.innerHTML='<p class="ayuda" style="margin:0">Las sugerencias aparecen cuando el proceso tiene tareas y flujos.</p>'; return; }
+  if(!lista.length){ cont.innerHTML='<ul class="msgs"><li class="ok"><b>Listo.</b>No hay puntos de control pendientes según las reglas estructurales.</li></ul>'; return; }
+  cont.innerHTML = lista.map((s,i)=>{
+    const el = ultimoModelo.byId.get(s.id);
+    return '<div class="sug"><span class="chip '+(s.tipo==="Dual"?"dual":"oper")+'">'+s.tipo+'</span><div><p><b>'+esc(s.id)+"</b> "+esc(el&&el.nombre||"")+'</p><p class="d">'+esc(s.motivos.join(" "))+" Naturaleza sugerida: "+s.nat.toLowerCase()+'.</p></div><button class="btn" data-aplicar="'+i+'">Agregar control</button></div>';
+  }).join("");
+}
+document.addEventListener("click", e=>{
+  const b = e.target.closest("[data-aplicar]"); if(!b) return;
+  const s = sugerenciasActuales[+b.dataset.aplicar]; if(!s) return;
+  const el = ultimoModelo.byId.get(s.id);
+  const c = {id:siguienteId(estado.controles,"C"), elemento:s.id, tipo:s.tipo, naturaleza:s.nat, ejecucion:"Manual", frecuencia:"Cada ejecución", responsable:"", descripcion:s.desc, evidencia:""};
+  estado.controles.push(c); marcarEdicion(); renderTablas(); actualizar();
+  aviso("ok","Se agregó el control "+c.id+" a "+s.id+(el&&el.nombre?" ("+el.nombre+")":"")+". Complétalo en la pestaña Controles.");
+});
+
+/* ===== Actualización general ===== */
+function actualizar(){
+  const m = construirModelo(); ultimoModelo = m;
+  const lz = $("#lienzo");
+  if(!m.E.length){ lz.innerHTML='<div class="vacio-lienzo">Agrega carriles y elementos, o carga la plantilla de Excel, para ver el diagrama.</div>'; ultimaGeo=null; }
+  else { const g = geometria(m); ultimaGeo = g; lz.innerHTML = svgDiagrama(m,g); aplicarZoom(); }
+  const v = validar(m), et = {error:"Error",aviso:"Advertencia",info:"Información",ok:"Listo"};
+  $("#validacion").innerHTML = v.map(x=>'<li class="'+x.sev+'"><b>'+et[x.sev]+".</b>"+esc(x.t)+"</li>").join("");
+  const nErr = v.filter(x=>x.sev==="error").length, nAv = v.filter(x=>x.sev==="aviso").length;
+  const nD = estado.controles.filter(c=>norm(c.tipo)==="dual").length, nO = estado.controles.filter(c=>norm(c.tipo)==="operativo").length;
+  const pl=(n,s,p)=>"<span>"+n+" "+(n===1?s:p)+"</span>";
+  $("#resumen").innerHTML = pl(m.E.length,"elemento","elementos")+pl(m.edges.length,"flujo","flujos")+pl(nD,"control dual","controles duales")+pl(nO,"control operativo","controles operativos")+pl(nErr,"error","errores")+pl(nAv,"advertencia","advertencias");
+  pintarSugerencias(sugerir(m));
+  contadores();
+}
+
+/* ===== Zoom y selección ===== */
+function aplicarZoom(){
+  const svg = $("#lienzo svg"); if(!svg||!ultimaGeo) return;
+  const vb = svg.viewBox.baseVal; svg.setAttribute("width", Math.round(vb.width*zoom)); svg.setAttribute("height", Math.round(vb.height*zoom));
+  $("#z-val").textContent = Math.round(zoom*100)+" %";
+}
+$("#z-mas").onclick = ()=>{ zoom = Math.min(2.5, +(zoom+0.1).toFixed(2)); aplicarZoom(); };
+$("#z-menos").onclick = ()=>{ zoom = Math.max(0.3, +(zoom-0.1).toFixed(2)); aplicarZoom(); };
+$("#z-ajustar").onclick = ()=>{ const svg=$("#lienzo svg"); if(!svg) return; zoom = Math.max(0.3, Math.min(2.5, ($("#lienzo").clientWidth-4)/svg.viewBox.baseVal.width)); aplicarZoom(); };
+$("#lienzo").addEventListener("click", e=>{
+  const n = e.target.closest("g.nodo"); if(!n) return;
+  seleccion = n.dataset.id; activarTab("elementos"); renderTabla("elementos"); actualizar();
+  const fila = document.querySelector('#panel-elementos tr[data-eid="'+CSS.escape(seleccion)+'"]');
+  if(fila){ fila.scrollIntoView({block:"center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"}); const inp=fila.querySelector("input"); if(inp) inp.focus({preventScroll:true}); }
+});
+
+/* ===== Exportación de diagrama ===== */
+function svgExport(){
+  if(!ultimoModelo||!ultimoModelo.E.length){ aviso("aviso","No hay diagrama para exportar."); return null; }
+  const prev = seleccion; seleccion = null;
+  const s = svgDiagrama(ultimoModelo, ultimaGeo); seleccion = prev; return s;
+}
+$("#e-svg").onclick = ()=>{ const s=svgExport(); if(s) guardar(slug(estado.proceso.nombre)+"_diagrama.svg", '<?xml version="1.0" encoding="UTF-8"?>\n'+s, "image/svg+xml"); };
+$("#e-png").onclick = ()=>{
+  const s = svgExport(); if(!s) return;
+  const img = new Image(), esc2 = 2;
+  img.onload = ()=>{
+    const cv = document.createElement("canvas"); cv.width = img.width*esc2; cv.height = img.height*esc2;
+    const cx = cv.getContext("2d"); cx.scale(esc2,esc2); cx.drawImage(img,0,0);
+    cv.toBlob(b=>{ if(b) guardar(slug(estado.proceso.nombre)+"_diagrama.png", b, "image/png"); else aviso("error","No fue posible generar la imagen PNG."); }, "image/png");
+  };
+  img.onerror = ()=>aviso("error","No fue posible generar la imagen PNG.");
+  img.src = "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(s);
+};
+
+/* ===== BPMN 2.0 XML ===== */
+function nc(id){ return "N_"+String(id).replace(/[^A-Za-z0-9_.]/g,"_"); }
+function xesc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function bpmnXML(){
+  const m = ultimoModelo, g = ultimaGeo; if(!m||!m.E.length) return null;
+  const tag = e => ({inicio:"startEvent",fin:"endEvent",intermedio:"intermediateThrowEvent",exclusivo:"exclusiveGateway",paralelo:"parallelGateway",inclusivo:"inclusiveGateway"})[e.tipo] ||
+    ({Usuario:"userTask",Manual:"manualTask",Servicio:"serviceTask"})[e.subtipo] || "task";
+  const fid = ed => "Flujo_"+(ed.i+1);
+  const inc = new Map(m.E.map(e=>[e.id,[]])), out = new Map(m.E.map(e=>[e.id,[]]));
+  m.edges.forEach(ed=>{ out.get(ed.o).push(ed); inc.get(ed.d).push(ed); });
+  let x = '<?xml version="1.0" encoding="UTF-8"?>\n';
+  x += '<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definiciones_1" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Hodos" exporterVersion="1.0">\n';
+  x += '  <bpmn:collaboration id="Colaboracion_1">\n    <bpmn:participant id="Participante_1" name="'+xesc(estado.proceso.nombre||"Proceso")+'" processRef="Proceso_1" />\n  </bpmn:collaboration>\n';
+  x += '  <bpmn:process id="Proceso_1" name="'+xesc(estado.proceso.nombre||"Proceso")+'" isExecutable="false">\n';
+  const docP = [estado.proceso.objetivo?("Objetivo: "+estado.proceso.objetivo):"", estado.proceso.dueno?("Dueño: "+estado.proceso.dueno):"", estado.proceso.version?("Versión: "+estado.proceso.version):""].filter(Boolean).join(". ");
+  if(docP) x += "    <bpmn:documentation>"+xesc(docP)+"</bpmn:documentation>\n";
+  x += '    <bpmn:laneSet id="Carriles_1">\n';
+  m.lanes.forEach((l,i)=>{
+    x += '      <bpmn:lane id="Carril_'+(i+1)+'" name="'+xesc(l)+'">\n';
+    m.E.filter(e=>e.carril===l).forEach(e=>{ x += "        <bpmn:flowNodeRef>"+nc(e.id)+"</bpmn:flowNodeRef>\n"; });
+    x += "      </bpmn:lane>\n";
+  });
+  x += "    </bpmn:laneSet>\n";
+  m.E.forEach(e=>{
+    const t = tag(e);
+    x += "    <bpmn:"+t+' id="'+nc(e.id)+'" name="'+xesc(e.nombre||"")+'">\n';
+    const cs = m.ctrl.get(e.id)||[];
+    const doc = [e.critica==="Sí"?"Actividad crítica.":""].concat(cs.map(c=>"Control "+(c.id||"")+" ("+(c.tipo||"")+", "+(c.naturaleza||"")+", "+(c.ejecucion||"")+"): "+(c.descripcion||"")+(c.responsable?". Responsable: "+c.responsable:"")+(c.evidencia?". Evidencia: "+c.evidencia:"")+(c.frecuencia?". Frecuencia: "+c.frecuencia:""))).filter(Boolean).join(" | ");
+    if(doc) x += "      <bpmn:documentation>"+xesc(doc)+"</bpmn:documentation>\n";
+    inc.get(e.id).forEach(ed=>{ x += "      <bpmn:incoming>"+fid(ed)+"</bpmn:incoming>\n"; });
+    out.get(e.id).forEach(ed=>{ x += "      <bpmn:outgoing>"+fid(ed)+"</bpmn:outgoing>\n"; });
+    x += "    </bpmn:"+t+">\n";
+  });
+  m.edges.forEach(ed=>{
+    const so = m.byId.get(ed.o);
+    x += '    <bpmn:sequenceFlow id="'+fid(ed)+'" sourceRef="'+nc(ed.o)+'" targetRef="'+nc(ed.d)+'"'+(ed.cond?' name="'+xesc(ed.cond)+'"':"");
+    if(ed.cond && (so.tipo==="exclusivo"||so.tipo==="inclusivo")) x += '>\n      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">'+xesc(ed.cond)+"</bpmn:conditionExpression>\n    </bpmn:sequenceFlow>\n";
+    else x += " />\n";
+  });
+  x += "  </bpmn:process>\n";
+  x += '  <bpmndi:BPMNDiagram id="Diagrama_1">\n    <bpmndi:BPMNPlane id="Plano_1" bpmnElement="Colaboracion_1">\n';
+  const b = (X,Y,W,H)=>'<dc:Bounds x="'+Math.round(X)+'" y="'+Math.round(Y)+'" width="'+Math.round(W)+'" height="'+Math.round(H)+'" />';
+  x += '      <bpmndi:BPMNShape id="Participante_1_di" bpmnElement="Participante_1" isHorizontal="true">'+b(0,G.TOP,g.W,g.H-G.TOP)+"</bpmndi:BPMNShape>\n";
+  g.lanesG.forEach((L,i)=>{ x += '      <bpmndi:BPMNShape id="Carril_'+(i+1)+'_di" bpmnElement="Carril_'+(i+1)+'" isHorizontal="true">'+b(G.POOL,L.y,g.W-G.POOL,L.h)+"</bpmndi:BPMNShape>\n"; });
+  m.E.forEach(e=>{ const p=g.pos.get(e.id); x += '      <bpmndi:BPMNShape id="'+nc(e.id)+'_di" bpmnElement="'+nc(e.id)+'"'+(e.tipo==="exclusivo"?' isMarkerVisible="true"':"")+">"+b(p.cx-p.hw,p.cy-p.hh,2*p.hw,2*p.hh)+"</bpmndi:BPMNShape>\n"; });
+  g.rutas.forEach(r=>{
+    x += '      <bpmndi:BPMNEdge id="'+fid(r.ed)+'_di" bpmnElement="'+fid(r.ed)+'">';
+    r.pts.forEach(p=>{ x += '<di:waypoint x="'+Math.round(p[0])+'" y="'+Math.round(p[1])+'" />'; });
+    x += "</bpmndi:BPMNEdge>\n";
+  });
+  x += "    </bpmndi:BPMNPlane>\n  </bpmndi:BPMNDiagram>\n</bpmn:definitions>\n";
+  return x;
+}
+$("#e-bpmn").onclick = ()=>{ const x=bpmnXML(); if(!x){aviso("aviso","No hay diagrama para exportar.");return;} guardar(slug(estado.proceso.nombre)+".bpmn", x, "application/xml"); };
+$("#e-copiar").onclick = async ()=>{
+  const x=bpmnXML(); if(!x){aviso("aviso","No hay diagrama para exportar.");return;}
+  try{ await navigator.clipboard.writeText(x); aviso("ok","XML BPMN copiado al portapapeles."); }
+  catch(_){ aviso("error","El navegador no permitió copiar al portapapeles en esta vista."); }
+};
+
+/* ===== Plantilla Excel ===== */
+const HOJAS = {
+  Carriles:["Carril","Descripción"],
+  Elementos:["ID","Tipo","Nombre","Carril","Subtipo de tarea","Crítica"],
+  Flujos:["Origen","Destino","Condición"],
+  Controles:["ID","Elemento","Tipo de control","Naturaleza","Ejecución","Frecuencia","Responsable","Descripción","Evidencia"]
+};
+function hojaInstrucciones(){
+  return [
+    ["Plantilla de Hodós para diagramar procesos en BPMN 2.0"],
+    [""],
+    ["Hoja","Qué registrar"],
+    ["Proceso","Nombre, dueño, versión y objetivo del proceso en la columna Valor."],
+    ["Carriles","Un carril por cada rol o área que participa. El nombre debe ser único."],
+    ["Elementos","Cada evento, tarea o gateway. El ID debe ser único y el carril debe existir en la hoja Carriles."],
+    ["Flujos","Cada conexión entre dos elementos usando sus ID. Escribe la condición en las salidas de los gateways exclusivos o inclusivos."],
+    ["Controles","Cada control asociado al ID de un elemento."],
+    [""],
+    ["Valores permitidos",""],
+    ["Tipo de elemento", Object.values(TIPOS).join(", ")],
+    ["Subtipo de tarea", SUBTIPOS.join(", ")],
+    ["Crítica","Sí, No"],
+    ["Tipo de control", TIPOS_CONTROL.join(", ")],
+    ["Naturaleza", NATURALEZAS.join(", ")],
+    ["Ejecución", EJECUCIONES.join(", ")],
+    [""],
+    ["Hodós versión 1.0. Desarrollado por Mario Sergio Gómez Rueda para uso académico. Cualquier otro uso se rige por las normas de propiedad intelectual. Sugerencias o inquietudes: mgomezr1@gmail.com"]
+  ];
+}
+function libro(conDatos){
+  const wb = XLSX.utils.book_new();
+  const ins = XLSX.utils.aoa_to_sheet(hojaInstrucciones()); ins["!cols"]=[{wch:22},{wch:110}];
+  XLSX.utils.book_append_sheet(wb, ins, "Instrucciones");
+  const p = estado.proceso;
+  const proc = XLSX.utils.aoa_to_sheet([["Campo","Valor"],["Nombre del proceso",conDatos?p.nombre:""],["Dueño del proceso",conDatos?p.dueno:""],["Versión",conDatos?p.version:"1.0"],["Objetivo",conDatos?p.objetivo:""]]);
+  proc["!cols"]=[{wch:22},{wch:70}]; XLSX.utils.book_append_sheet(wb, proc, "Proceso");
+  const filas = {
+    Carriles: estado.carriles.map(c=>[c.nombre,c.descripcion]),
+    Elementos: estado.elementos.map(e=>[e.id,TIPOS[e.tipo]||e.tipo,e.nombre,e.carril,e.tipo==="tarea"?e.subtipo:"",e.tipo==="tarea"?e.critica:""]),
+    Flujos: estado.flujos.map(f=>[f.origen,f.destino,f.condicion]),
+    Controles: estado.controles.map(c=>[c.id,c.elemento,c.tipo,c.naturaleza,c.ejecucion,c.frecuencia,c.responsable,c.descripcion,c.evidencia])
+  };
+  Object.keys(HOJAS).forEach(h=>{
+    const ws = XLSX.utils.aoa_to_sheet([HOJAS[h]].concat(conDatos?filas[h]:[]));
+    ws["!cols"] = HOJAS[h].map(t=>({wch: Math.max(14, /Descrip|Nombre|Condici|Evidencia/.test(t)?40:t.length+4)}));
+    XLSX.utils.book_append_sheet(wb, ws, h);
+  });
+  return new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+}
+function sinExcel(){ if(typeof XLSX==="undefined"){ aviso("error","No se cargó la librería de Excel. Revisa la conexión a internet y recarga la página."); return true; } return false; }
+$("#b-plantilla").onclick = ()=>{ if(sinExcel()) return; guardar("plantilla_hodos.xlsx", libro(false)); };
+$("#b-exportar").onclick = ()=>{ if(sinExcel()) return; if(!estado.elementos.length&&!estado.carriles.length){aviso("aviso","No hay datos para exportar.");return;} guardar(slug(estado.proceso.nombre)+"_datos_hodos.xlsx", libro(true)); };
+$("#b-cargar").onclick = ()=>{ if(sinExcel()) return; $("#f-archivo").click(); };
+$("#f-archivo").onchange = async e=>{
+  const f = e.target.files[0]; e.target.value = ""; if(!f) return;
+  try{
+    const wb = XLSX.read(await f.arrayBuffer(), {type:"array"});
+    importar(wb, f.name);
+  }catch(err){ aviso("error","No fue posible leer el archivo. Verifica que sea la plantilla de Hodós en formato .xlsx."); }
+};
+function hoja(wb, nombre){
+  const k = wb.SheetNames.find(n=>norm(n)===norm(nombre)); if(!k) return null;
+  return XLSX.utils.sheet_to_json(wb.Sheets[k], {header:1, defval:"", raw:false});
+}
+function registros(filas, mapa){
+  if(!filas||!filas.length) return [];
+  const cab = filas[0].map(norm), idx = {};
+  Object.entries(mapa).forEach(([campo, claves])=>{ idx[campo] = cab.findIndex(h=>claves.some(c=>h===c||h.startsWith(c))); });
+  return filas.slice(1).filter(r=>r.some(v=>String(v).trim()!=="")).map(r=>{ const o={}; Object.keys(mapa).forEach(c=>{ o[c] = idx[c]>=0 ? String(r[idx[c]]==null?"":r[idx[c]]).trim() : ""; }); return o; });
+}
+function importar(wb, nombreArchivo){
+  const faltan = ["Carriles","Elementos","Flujos"].filter(h=>!hoja(wb,h));
+  if(faltan.length===3){ aviso("error","El archivo no tiene las hojas de la plantilla (Carriles, Elementos, Flujos). Descarga la plantilla y úsala como base."); return; }
+  const proc = hoja(wb,"Proceso"), p = {nombre:"",dueno:"",objetivo:"",version:""};
+  (proc||[]).slice(1).forEach(r=>{ const c=norm(r[0]), v=String(r[1]==null?"":r[1]).trim(); if(c.includes("nombre")) p.nombre=v; else if(c.includes("dueno")) p.dueno=v; else if(c.includes("objetivo")) p.objetivo=v; else if(c.includes("version")) p.version=v; });
+  const car = registros(hoja(wb,"Carriles"), {nombre:["carril","nombre"], descripcion:["descripcion"]}).filter(r=>r.nombre);
+  const ele = registros(hoja(wb,"Elementos"), {id:["id"], tipo:["tipo"], nombre:["nombre"], carril:["carril"], subtipo:["subtipo"], critica:["critica"]}).map(r=>{
+    const tipo = tipoDesdeTexto(r.tipo);
+    return {id:r.id, tipo, nombre:r.nombre, carril:r.carril, subtipo: opcionDesde(r.subtipo, SUBTIPOS, "Genérica"), critica: siNo(r.critica)};
+  });
+  const flu = registros(hoja(wb,"Flujos"), {origen:["origen","desde"], destino:["destino","hacia"], condicion:["condicion"]});
+  const con = registros(hoja(wb,"Controles"), {id:["id"], elemento:["elemento"], tipo:["tipo de control","tipo"], naturaleza:["naturaleza"], ejecucion:["ejecucion"], frecuencia:["frecuencia"], responsable:["responsable"], descripcion:["descripcion"], evidencia:["evidencia"]}).map(r=>Object.assign(r,{
+    tipo: opcionDesde(r.tipo, TIPOS_CONTROL, r.tipo), naturaleza: opcionDesde(r.naturaleza, NATURALEZAS, r.naturaleza), ejecucion: opcionDesde(r.ejecucion, EJECUCIONES, r.ejecucion)
+  }));
+  Object.assign(estado, {proceso:Object.assign({version:"1.0"},p), carriles:car, elementos:ele, flujos:flu, controles:con, origen:"excel", archivo:nombreArchivo});
+  seleccion = null; renderProceso(); renderTablas(); pintarOrigen(); actualizar();
+  aviso("ok","Plantilla cargada: "+car.length+" carriles, "+ele.length+" elementos, "+flu.length+" flujos y "+con.length+" controles.");
+}
+
+/* ===== Datos de prueba (ficticios) ===== */
+function datosPrueba(){
+  const T = (id,tipo,nombre,carril,subtipo,critica)=>({id,tipo,nombre,carril,subtipo:subtipo||"Genérica",critica:critica||"No"});
+  return {
+    proceso:{nombre:"Pago a proveedores (datos de prueba)", dueno:"Dirección financiera (ficticia)", objetivo:"Pagar oportunamente las obligaciones con proveedores con soportes completos y aprobaciones adecuadas.", version:"0.1"},
+    carriles:[{nombre:"Solicitante",descripcion:"Área que recibe el bien o servicio"},{nombre:"Compras",descripcion:"Verificación contra la orden de compra"},{nombre:"Contabilidad",descripcion:"Causación y aprobación"},{nombre:"Tesorería",descripcion:"Ejecución y conciliación del pago"}],
+    elementos:[
+      T("I1","inicio","Factura recibida","Solicitante"),
+      T("T1","tarea","Radicar factura y soportes","Solicitante","Usuario"),
+      T("T2","tarea","Verificar soportes contra la orden de compra","Compras","Usuario"),
+      T("G1","exclusivo","¿Soportes completos?","Compras"),
+      T("T3","tarea","Devolver para corrección","Compras","Manual"),
+      T("T4","tarea","Causar la obligación contable","Contabilidad","Usuario","Sí"),
+      T("T5","tarea","Aprobar el pago","Contabilidad","Usuario","Sí"),
+      T("G2","paralelo","","Tesorería"),
+      T("T6","tarea","Programar la transferencia bancaria","Tesorería","Servicio","Sí"),
+      T("T7","tarea","Notificar el pago al proveedor","Tesorería","Usuario"),
+      T("G3","paralelo","","Tesorería"),
+      T("T8","tarea","Conciliar el pago con el extracto","Tesorería","Usuario"),
+      T("F1","fin","Pago conciliado","Tesorería")
+    ],
+    flujos:[
+      {origen:"I1",destino:"T1",condicion:""},{origen:"T1",destino:"T2",condicion:""},{origen:"T2",destino:"G1",condicion:""},
+      {origen:"G1",destino:"T4",condicion:"Sí"},{origen:"G1",destino:"T3",condicion:"No"},{origen:"T3",destino:"T1",condicion:""},
+      {origen:"T4",destino:"T5",condicion:""},{origen:"T5",destino:"G2",condicion:""},{origen:"G2",destino:"T6",condicion:""},
+      {origen:"G2",destino:"T7",condicion:""},{origen:"T6",destino:"G3",condicion:""},{origen:"T7",destino:"G3",condicion:""},
+      {origen:"G3",destino:"T8",condicion:""},{origen:"T8",destino:"F1",condicion:""}
+    ],
+    controles:[
+      {id:"C1",elemento:"T2",tipo:"Operativo",naturaleza:"Preventivo",ejecucion:"Manual",frecuencia:"Cada factura",responsable:"Analista de compras",descripcion:"Cruce de factura, orden de compra y recibo a satisfacción",evidencia:"Lista de chequeo firmada"},
+      {id:"C2",elemento:"T5",tipo:"Dual",naturaleza:"Preventivo",ejecucion:"Semiautomático",frecuencia:"Cada pago",responsable:"Contador y jefe financiero",descripcion:"Aprobación con doble firma en el sistema para montos sobre el umbral",evidencia:"Registro de aprobación en el sistema"},
+      {id:"C3",elemento:"T8",tipo:"Operativo",naturaleza:"Detectivo",ejecucion:"Manual",frecuencia:"Diaria",responsable:"Auxiliar de tesorería",descripcion:"Conciliación de pagos contra el extracto bancario",evidencia:"Conciliación diaria archivada"}
+    ]
+  };
+}
+$("#b-prueba").onclick = ()=>{
+  if(estado.elementos.length && estado.origen!=="prueba" && estado.origen!=="prueba-editada" && !confirm("Los datos de prueba reemplazarán el proceso actual. ¿Deseas continuar?")) return;
+  Object.assign(estado, datosPrueba(), {origen:"prueba"}); seleccion=null;
+  renderProceso(); renderTablas(); pintarOrigen(); actualizar(); zoom=1; aplicarZoom();
+  aviso("info","Se cargaron datos de prueba. Son ficticios y sirven solo para explorar el aplicativo.");
+};
+$("#b-limpiar").onclick = ()=>{
+  if((estado.elementos.length||estado.carriles.length) && !confirm("Se borrará todo el proceso actual. ¿Deseas continuar?")) return;
+  Object.assign(estado, {proceso:{nombre:"",dueno:"",objetivo:"",version:"1.0"}, carriles:[], elementos:[], flujos:[], controles:[], origen:"vacio", archivo:""});
+  seleccion=null; renderProceso(); renderTablas(); pintarOrigen(); actualizar();
+  aviso("info","El proceso quedó en blanco.");
+};
+
+/* ===== Inicio ===== */
+renderProceso(); renderTablas(); pintarOrigen(); actualizar();
+})();
+</script>
+</body>
+</html>

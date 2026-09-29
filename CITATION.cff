@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "Si utilizas este software en trabajos académicos, cítalo con los siguientes metadatos."
+type: software
+title: "Hodós: visualizador de procesos en notación BPMN 2.0 con identificación de puntos de control"
+abstract: "Aplicación web para el análisis de eficiencia operativa que construye procesos a partir de formularios o plantillas de Excel, los representa en notación BPMN 2.0 y sugiere puntos de control duales y operativos."
+authors:
+  - family-names: "Gómez Rueda"
+    given-names: "Mario Sergio"
+    email: "mgomezr1@gmail.com"
+    affiliation: "Universidad Pontificia Bolivariana"
+version: "1.0.0"
+date-released: "2026-09-29"
+url: "https://mgomezr1.github.io/hodos/"
+repository-code: "https://github.com/mgomezr1/hodos"
+license-url: "https://github.com/mgomezr1/hodos/blob/main/LICENSE"
+keywords:
+  - BPMN
+  - gestión de procesos
+  - eficiencia operativa
+  - control interno
+  - segregación de funciones
+  - COSO
